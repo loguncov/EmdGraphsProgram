@@ -51,7 +51,7 @@ def visualize_graph(G, objects, frame):
     pos = {i: (obj['x'], obj['y']) for i, obj in enumerate(objects)}
     nx.draw(G, pos, with_labels=True, node_size=500, node_color='skyblue', ax=ax)
     labels = nx.get_edge_attributes(G, 'weight')
-    nx.draw_networkx_edge_labels(G, pos, edge_labels={k: f"{v:.2f}" for k, v in labels.items()}, ax=ax)
+    nx.draw_networkx_edge_labels(G, pos, edge_labels={k: "1 - ЭМД" for k in labels.keys()}, ax=ax)
     canvas = FigureCanvasTkAgg(fig, master=frame)
     canvas.draw()
     canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
