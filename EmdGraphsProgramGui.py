@@ -18,8 +18,10 @@ def calculate_path_loss(frequency, distance):
     return 20 * math.log10(distance * 1000) + 20 * math.log10(frequency) - 147.55
 
 
-def calculate_signal_to_noise(p1, g1, g2, loss):
-    return p1 + g1 + g2 - loss
+def calculate_signal_to_noise(p1, g1, g2, loss, noise_power):
+    """Расчет отношения сигнал/шум с учетом мощности помехи."""
+    signal_power = p1 + g1 + g2 - loss  # Мощность сигнала
+    return signal_power - noise_power  # SNR = сигнал минус шум
 
 
 def calculate_emd(snr, required_snr):
@@ -39,7 +41,7 @@ def build_graph(objects, frequency, required_snr):
             if distance > visibility:
                 continue
             loss = calculate_path_loss(frequency, distance)
-            snr = calculate_signal_to_noise(obj1['power'], obj1['gain'], obj2['gain'], loss)
+            snr = calculate_signal_to_noise(obj1['power'], obj1['gain'], obj2['gain'], loss, obj1['noise_power'])
             emd = calculate_emd(snr, required_snr)
             if emd > 0.1:
                 G.add_edge(i, j, weight=1 - emd)
@@ -50,8 +52,26 @@ def visualize_graph(G, objects, frame):
     fig, ax = plt.subplots()
     pos = {i: (obj['x'], obj['y']) for i, obj in enumerate(objects)}
     nx.draw(G, pos, with_labels=True, node_size=500, node_color='skyblue', ax=ax)
+
+    # Получаем веса рёбер (ЭМД)
     labels = nx.get_edge_attributes(G, 'weight')
-    nx.draw_networkx_edge_labels(G, pos, edge_labels={k: "1 - ЭМД" for k in labels.keys()}, ax=ax)
+
+    # Создаем метки с конкретным значением для каждого ребра
+    edge_labels = {k: f"ЭМД: {1 - v:.2f}" for k, v in labels.items()}
+
+    # Позиции рёбер для отображения меток
+    edge_positions = {}
+    for (start, end) in G.edges():
+        x0, y0 = pos[start]
+        x1, y1 = pos[end]
+        edge_positions[(start, end)] = ((x0 + x1) / 2, (y0 + y1) / 2)
+
+    # Рисуем текст с белым фоном
+    for (start, end), label in edge_labels.items():
+        x, y = edge_positions[(start, end)]
+        ax.text(x + 0.05, y + 0.05, label, horizontalalignment='center', verticalalignment='center', fontsize=8,
+                bbox=dict(facecolor='white', edgecolor='none', boxstyle="round,pad=0.3"))
+
     canvas = FigureCanvasTkAgg(fig, master=frame)
     canvas.draw()
     canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
@@ -65,8 +85,9 @@ def run_gui():
             height = float(entry_height.get())
             power = float(entry_power.get())
             gain = float(entry_gain.get())
-            objects.append({'x': x, 'y': y, 'height': height, 'power': power, 'gain': gain})
-            messagebox.showinfo("Успех", f"Объект добавлен: x={x}, y={y}, height={height}, power={power}, gain={gain}")
+            noise_power = float(entry_noise_power.get())  # Мощность помехи
+            objects.append({'x': x, 'y': y, 'height': height, 'power': power, 'gain': gain, 'noise_power': noise_power})
+            messagebox.showinfo("Успех", f"Объект добавлен: x={x}, y={y}, height={height}, power={power}, gain={gain}, noise_power={noise_power}")
             update_table()
         except ValueError:
             messagebox.showerror("Ошибка", "Пожалуйста, введите корректные числовые значения")
@@ -75,7 +96,7 @@ def run_gui():
         for i in tree.get_children():
             tree.delete(i)
         for idx, obj in enumerate(objects):
-            tree.insert("", "end", values=(idx, obj['x'], obj['y'], obj['height'], obj['power'], obj['gain']))
+            tree.insert("", "end", values=(idx, obj['x'], obj['y'], obj['height'], obj['power'], obj['gain'], obj['noise_power']))
 
     def build_and_show_graph():
         try:
@@ -108,6 +129,9 @@ def run_gui():
     tk.Label(frame_inputs, text="Коэф. усиления (dB)").pack()
     entry_gain = tk.Entry(frame_inputs)
     entry_gain.pack()
+    tk.Label(frame_inputs, text="Мощность помехи (dBm)").pack()  # Добавляем ввод для мощности помехи
+    entry_noise_power = tk.Entry(frame_inputs)
+    entry_noise_power.pack()
     tk.Button(frame_inputs, text="Добавить объект", command=add_object).pack(pady=5)
 
     tk.Label(frame_inputs, text="Параметры связи").pack()
@@ -124,13 +148,14 @@ def run_gui():
     frame_table = tk.Frame(root)
     frame_table.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=10)
 
-    tree = ttk.Treeview(frame_table, columns=("ID", "x", "y", "Height", "Power", "Gain"), show="headings")
+    tree = ttk.Treeview(frame_table, columns=("ID", "x", "y", "Height", "Power", "Gain", "Noise Power"), show="headings")
     tree.heading("ID", text="ID")
     tree.heading("x", text="x")
     tree.heading("y", text="y")
     tree.heading("Height", text="Height")
     tree.heading("Power", text="Power")
     tree.heading("Gain", text="Gain")
+    tree.heading("Noise Power", text="Noise Power")
     tree.pack(fill=tk.BOTH, expand=True)
 
     frame_graph = tk.Frame(root)
