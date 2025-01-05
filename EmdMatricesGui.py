@@ -5,6 +5,8 @@ import tkinter as tk
 from tkinter import messagebox, simpledialog, ttk, filedialog
 import csv
 
+matrices = []  # Список для хранения матриц
+
 def calculate_direct_visibility(h1, h2):
     a_e = 8500  # Эквивалентный радиус Земли (км)
     return math.sqrt(2 * a_e * h1) + math.sqrt(2 * a_e * h2)
@@ -41,24 +43,36 @@ def build_matrix(objects, frequency, required_snr):
             matrix[i][j] = round(emd, 2)  # Округляем значение до сотых
     return matrix
 
-def display_matrix(matrix, frame):
+def display_matrix(matrices, frame):
+    # Очищаем только область для матриц, чтобы не перерисовывать все элементы
     for widget in frame.winfo_children():
         widget.destroy()
 
-    # Добавляем заголовки столбцов
-    for j in range(len(matrix)):
-        header = tk.Label(frame, text=f"{j}", borderwidth=1, relief="solid", width=4, height=2, bg="lightgray")
-        header.grid(row=0, column=j+1, padx=1, pady=1)
+    # Начальный столбец для отображения матриц
+    column_offset = 0
 
-    # Добавляем заголовки строк и содержимое матрицы
-    for i, row in enumerate(matrix):
-        row_header = tk.Label(frame, text=f"{i}", borderwidth=1, relief="solid", width=4, height=2, bg="lightgray")
-        row_header.grid(row=i+1, column=0, padx=1, pady=1)
-        for j, value in enumerate(row):
-            color = "lightgreen" if value > 0.5 else "yellow" if value > 0.1 else "lightcoral"
-            label = tk.Label(frame, text=f"{value:.2f}", borderwidth=1, relief="solid", width=4, height=2, bg=color)
-            label.grid(row=i+1, column=j+1, padx=1, pady=1)
+    # Отображаем все матрицы подряд по горизонтали
+    for matrix_idx, matrix in enumerate(matrices):
+        # Добавляем заголовок для каждой матрицы
+        header = tk.Label(frame, text=f"Расчет ЭМД для случая №{matrix_idx + 1}", font=("Arial", 14, "bold"))
+        header.grid(row=0, column=column_offset, columnspan=len(matrix) + 1, pady=10)
 
+        # Добавляем заголовки столбцов
+        for j in range(len(matrix)):
+            header = tk.Label(frame, text=f"{j}", borderwidth=1, relief="solid", width=4, height=2, bg="lightgray")
+            header.grid(row=1, column=column_offset + j + 1, padx=1, pady=1)
+
+        # Добавляем заголовки строк и содержимое матрицы
+        for i, row in enumerate(matrix):
+            row_header = tk.Label(frame, text=f"{i}", borderwidth=1, relief="solid", width=4, height=2, bg="lightgray")
+            row_header.grid(row=i + 2, column=column_offset, padx=1, pady=1)
+            for j, value in enumerate(row):
+                color = "lightgreen" if value > 0.5 else "yellow" if value > 0.1 else "lightcoral"
+                label = tk.Label(frame, text=f"{value:.2f}", borderwidth=1, relief="solid", width=4, height=2, bg=color)
+                label.grid(row=i + 2, column=column_offset + j + 1, padx=1, pady=1)
+
+        # Обновляем offset для следующей матрицы, чтобы она была в следующем столбце
+        column_offset += len(matrix) + 2
 
 def update_table(tree):
     for i in tree.get_children():
@@ -103,11 +117,16 @@ def run_gui():
             messagebox.showerror("Ошибка", "Пожалуйста, введите корректные числовые значения")
 
     def build_and_show_matrix():
+        if len(matrices) >= 3:
+            messagebox.showwarning("Ограничение", "Можно создать не более 3 матриц.")
+            return  # Прерываем выполнение функции, если уже 3 матрицы
+
         try:
             freq = float(entry_freq.get())
             required_snr = float(entry_snr.get())
             matrix = build_matrix(objects, freq, required_snr)
-            display_matrix(matrix, frame_matrix)
+            matrices.append(matrix)  # Добавляем матрицу в список
+            display_matrix(matrices, frame_matrix)  # Отображаем все матрицы
         except ValueError:
             messagebox.showerror("Ошибка", "Пожалуйста, введите корректные параметры частоты и SNR")
 
