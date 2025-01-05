@@ -38,7 +38,7 @@ def build_matrix(objects, frequency, required_snr):
             loss = calculate_path_loss(frequency, distance)
             snr = calculate_signal_to_noise(obj1['power'], obj1['gain'], obj2['gain'], loss, obj1['noise_power'])
             emd = calculate_emd(snr, required_snr)
-            matrix[i][j] = 1 if emd > 0.1 else 0
+            matrix[i][j] = round(emd, 2)  # Округляем значение до сотых
     return matrix
 
 def display_matrix(matrix, frame):
@@ -55,8 +55,8 @@ def display_matrix(matrix, frame):
         row_header = tk.Label(frame, text=f"{i}", borderwidth=1, relief="solid", width=4, height=2, bg="lightgray")
         row_header.grid(row=i+1, column=0, padx=1, pady=1)
         for j, value in enumerate(row):
-            color = "lightgreen" if value == 1 else "white"  # Выделяем ячейки со значением 1
-            label = tk.Label(frame, text=f"{int(value)}", borderwidth=1, relief="solid", width=4, height=2, bg=color)
+            color = "lightgreen" if value > 0.5 else "yellow" if value > 0.1 else "lightcoral"
+            label = tk.Label(frame, text=f"{value:.2f}", borderwidth=1, relief="solid", width=4, height=2, bg=color)
             label.grid(row=i+1, column=j+1, padx=1, pady=1)
 
 
