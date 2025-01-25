@@ -15,9 +15,10 @@ def calculate_path_loss(frequency, distance):
     wavelength = 300 / frequency  # Длина волны (м)
     return 20 * math.log10(distance * 1000) + 20 * math.log10(frequency) - 147.55
 
-def calculate_signal_to_noise(p1, g1, g2, loss, noise_power):
-    """Расчет отношения сигнал/шум с учетом мощности помехи."""
-    signal_power = p1 + g1 + g2 - loss  # Мощность сигнала
+def calculate_signal_to_noise(p1, g1, g2, loss, noise_power, weather_loss):
+    """Расчет отношения сигнал/шум с учетом мощности помехи и потерь из-за погоды."""
+    loss_with_weather = loss + (loss * weather_loss / 100)  # Учитываем потери из-за погоды
+    signal_power = p1 + g1 + g2 - loss_with_weather  # Мощность сигнала
     return signal_power - noise_power  # SNR = сигнал минус шум
 
 def calculate_emd(snr, required_snr):
@@ -25,7 +26,7 @@ def calculate_emd(snr, required_snr):
     u = (snr - required_snr) / sigma
     return norm.cdf(u)
 
-def build_matrix(objects, frequency, required_snr):
+def build_matrix(objects, frequency, required_snr, weather_loss):
     n = len(objects)
     matrix = np.zeros((n, n))
     for i, obj1 in enumerate(objects):
@@ -38,7 +39,7 @@ def build_matrix(objects, frequency, required_snr):
                 matrix[i][j] = 0
                 continue
             loss = calculate_path_loss(frequency, distance)
-            snr = calculate_signal_to_noise(obj1['power'], obj1['gain'], obj2['gain'], loss, obj1['noise_power'])
+            snr = calculate_signal_to_noise(obj1['power'], obj1['gain'], obj2['gain'], loss, obj1['noise_power'], weather_loss)
             emd = calculate_emd(snr, required_snr)
             matrix[i][j] = round(emd, 2)  # Округляем значение до сотых
     return matrix
@@ -124,11 +125,12 @@ def run_gui():
         try:
             freq = float(entry_freq.get())
             required_snr = float(entry_snr.get())
-            matrix = build_matrix(objects, freq, required_snr)
+            weather_loss = float(entry_weather_loss.get())  # Получаем коэффициент потерь из-за погоды
+            matrix = build_matrix(objects, freq, required_snr, weather_loss)
             matrices.append(matrix)  # Добавляем матрицу в список
             display_matrix(matrices, frame_matrix)  # Отображаем все матрицы
         except ValueError:
-            messagebox.showerror("Ошибка", "Пожалуйста, введите корректные параметры частоты и SNR")
+            messagebox.showerror("Ошибка", "Пожалуйста, введите корректные параметры частоты, SNR и потерь из-за погоды")
 
     root = tk.Tk()
     root.title("Матрица связи ЭМД")
@@ -165,6 +167,9 @@ def run_gui():
     tk.Label(frame_inputs, text="Требуемый SNR (дБ)").pack()
     entry_snr = tk.Entry(frame_inputs)
     entry_snr.pack()
+    tk.Label(frame_inputs, text="Потери из-за погоды (%)").pack()  # Новый ввод для коэффициента потерь
+    entry_weather_loss = tk.Entry(frame_inputs)
+    entry_weather_loss.pack()
 
     tk.Button(frame_inputs, text="Построить матрицу", command=build_and_show_matrix).pack(pady=10)
 
@@ -186,7 +191,6 @@ def run_gui():
     frame_matrix.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
 
     root.mainloop()
-
 
 if __name__ == "__main__":
     objects = []  # Список объектов
