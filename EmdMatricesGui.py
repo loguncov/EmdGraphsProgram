@@ -75,6 +75,18 @@ def display_matrix(matrices, frame):
         # Обновляем offset для следующей матрицы, чтобы она была в следующем столбце
         column_offset += len(matrix) + 2
 
+def save_matrix_to_file(matrix):
+    file_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
+    if file_path:
+        try:
+            with open(file_path, mode="w", newline="", encoding="utf-8") as file:
+                writer = csv.writer(file)
+                writer.writerow([f"Column {i}" for i in range(len(matrix))])
+                writer.writerows(matrix)
+            messagebox.showinfo("Успех", "Матрица успешно сохранена в файл")
+        except Exception as e:
+            messagebox.showerror("Ошибка", f"Не удалось сохранить файл: {e}")
+
 def update_table(tree):
     for i in tree.get_children():
         tree.delete(i)
@@ -129,6 +141,8 @@ def run_gui():
             matrix = build_matrix(objects, freq, required_snr, weather_loss)
             matrices.append(matrix)  # Добавляем матрицу в список
             display_matrix(matrices, frame_matrix)  # Отображаем все матрицы
+            if messagebox.askyesno("Сохранение", "Сохранить полученную матрицу в файл?"):
+                save_matrix_to_file(matrix)
         except ValueError:
             messagebox.showerror("Ошибка", "Пожалуйста, введите корректные параметры частоты, SNR и потерь из-за погоды")
 
