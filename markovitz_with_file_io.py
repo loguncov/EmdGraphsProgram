@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+import tkinter as tk
+from tkinter import ttk
 
 def create_time_series_matrix(matrices, num_time_intervals=100):
     """
@@ -20,24 +22,45 @@ def create_time_series_matrix(matrices, num_time_intervals=100):
 
     return result_matrix
 
-def plot_matrix(matrix):
+def plot_matrix_with_scroll(matrix):
     """
-    Отображает матрицу в виде таблицы с масштабируемым размером.
+    Отображает матрицу в виде таблицы с прокруткой.
     """
-    fig, ax = plt.subplots(figsize=(max(10, 0.1 * matrix.shape[1]), max(5, 0.3 * matrix.shape[0])))
-    ax.set_frame_on(False)
+    root = tk.Tk()
+    root.title("Матрица ЭМД")
 
-    # Создаём таблицу Pandas DataFrame
+    frame = tk.Frame(root)
+    frame.pack(fill=tk.BOTH, expand=True)
+
+    canvas = tk.Canvas(frame)
+    scrollbar = tk.Scrollbar(frame, orient=tk.HORIZONTAL, command=canvas.xview)
+    scrollable_frame = tk.Frame(canvas)
+
+    scrollable_frame.bind(
+        "<Configure>",
+        lambda e: canvas.configure(
+            scrollregion=canvas.bbox("all")
+        )
+    )
+
+    canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+    canvas.configure(xscrollcommand=scrollbar.set)
+
+    canvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+    scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
+
     df = pd.DataFrame(matrix, columns=[f"t{i+1}" for i in range(matrix.shape[1])])
+    table = ttk.Treeview(scrollable_frame, columns=list(df.columns), show="headings")
 
-    # Отображаем таблицу с форматированием
-    table = ax.table(cellText=df.round(2).values, colLabels=df.columns, loc="center", cellLoc="center")
-    table.auto_set_font_size(False)
-    table.set_fontsize(8)
-    table.scale(1.2, 1.2)
-    ax.axis("off")  # Отключаем оси
-    plt.title("Матрица ЭМД (временные промежутки × каналы)")
-    plt.show()
+    for col in df.columns:
+        table.heading(col, text=col)
+        table.column(col, width=50)
+
+    for row in df.itertuples(index=False):
+        table.insert("", "end", values=row)
+
+    table.pack()
+    root.mainloop()
 
 def save_matrix_to_file(matrix, filename="emd_matrix.csv"):
     """
@@ -51,7 +74,7 @@ def plot_heatmap(matrix):
     """
     Визуализация матрицы в виде heatmap.
     """
-    plt.figure(figsize=(max(10, 0.1 * matrix.shape[1]), max(5, 0.3 * matrix.shape[0])))
+    plt.figure(figsize=(max(15, 0.2 * matrix.shape[1]), max(8, 0.5 * matrix.shape[0])))
     sns.heatmap(matrix, cmap="coolwarm", annot=False)
     plt.xlabel("Временные промежутки")
     plt.ylabel("Каналы связи")
@@ -68,8 +91,8 @@ matrices = [np.random.rand(num_channels, num_channels) for _ in range(num_time_i
 # Создаем матрицу
 emd_time_matrix = create_time_series_matrix(matrices, num_time_intervals)
 
-# Отображаем матрицу в виде таблицы
-plot_matrix(emd_time_matrix)
+# Отображаем матрицу в виде таблицы с прокруткой
+plot_matrix_with_scroll(emd_time_matrix)
 
 # Сохраняем в CSV
 save_matrix_to_file(emd_time_matrix)
